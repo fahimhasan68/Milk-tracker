@@ -1,0 +1,6 @@
+{
+  "appId": "com.fahim.milktracker",
+  "appName": "মিল্ক ট্র্যাকার",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
