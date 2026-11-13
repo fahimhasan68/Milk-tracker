@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>মিল্ক ট্র্যাকার - প্রতিদিনের দুধের হিসাব</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Hind Siliguri for crisp, modern Bengali typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Hind Siliguri"', 'sans-serif'],
+                    },
+                    colors: {
+                        dairy: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-sky-200 selection:text-sky-900">
+
+    <!-- Toast Notification Banner (Replaces alert) -->
+    <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 transform transition-all duration-300 translate-y-20 opacity-0 pointer-events-none">
+        <div class="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 text-sm font-medium border border-slate-700">
+            <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400 shrink-0"></i>
+            <span id="toast-message">সংরক্ষণ করা হয়েছে</span>
+        </div>
+    </div>
+
+    <!-- Top Navigation / Header -->
+    <header class="bg-white border-b border-slate-200/80 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
+            <!-- Brand Logo & Name -->
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-white flex items-center justify-center shadow-md shadow-sky-500/20">
+                    <!-- Custom Milk Bottle SVG Icon -->
+                    <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 2h8"/>
+                        <path d="M9 2v2.789a4 4 0 0 1-.672 2.219l-.656.984A4 4 0 0 0 7 10.212V20a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-9.789a4 4 0 0 0-.672-2.219l-.656-.984A4 4 0 0 1 15 4.788V2"/>
+                        <path d="M7 15a6.472 6.472 0 0 1 5 0 6.47 6.47 0 0 0 5 0"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold text-slate-900 leading-tight tracking-tight">মিল্ক ট্র্যাকার</h1>
+                    <p class="text-xs text-slate-500 font-medium">মাসিক দুধের সহজ হিসাব</p>
+                </div>
+            </div>
+
+            <!-- Month / Year Navigator -->
+            <div class="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200/70">
+                <button id="prev-month-btn" type="button" aria-label="পূর্ববর্তী মাস" class="p-2 rounded-xl hover:bg-white hover:shadow-sm text-slate-600 hover:text-sky-600 transition active:scale-95">
+                    <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                </button>
+                <div class="px-3 sm:px-4 text-center min-w-[135px]">
+                    <span id="current-month-year" class="font-bold text-slate-800 text-base sm:text-lg">নভেম্বর ২০২৬</span>
+                </div>
+                <button id="next-month-btn" type="button" aria-label="পরবর্তী মাস" class="p-2 rounded-xl hover:bg-white hover:shadow-sm text-slate-600 hover:text-sky-600 transition active:scale-95">
+                    <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+        <!-- Dashboard Summary Cards -->
+        <section aria-label="মাসিক সারসংক্ষেপ" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                
+                <!-- Card 1: Monthly Target (Editable) -->
+                <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm relative overflow-hidden flex flex-col justify-between">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-sky-500"></span>
+                                মাসিক লক্ষ্য (নির্ধারিত)
+                            </p>
+                            <div id="target-display-box" class="mt-2 flex items-baseline gap-1.5">
+                                <span id="stat-target" class="text-3xl font-bold text-slate-900">১৫</span>
+                                <span class="text-sm font-semibold text-slate-500">লিটার / কেজি</span>
+                            </div>
+                        </div>
+                        <button id="edit-target-btn" type="button" class="p-2.5 rounded-2xl bg-sky-50 text-sky-600 hover:bg-sky-100 transition flex items-center gap-1 text-xs font-semibold" title="মাসিক লক্ষ্য পরিবর্তন করুন">
+                            <i data-lucide="edit-3" class="w-4 h-4"></i>
+                            <span>পরিবর্তন</span>
+                        </button>
+                    </div>
+
+                    <!-- Inline Target Editor (Hidden by default) -->
+                    <div id="target-edit-box" class="hidden mt-3 pt-3 border-t border-slate-100">
+                        <label for="target-input" class="block text-xs font-semibold text-slate-600 mb-1.5">মাসে মোট কত লিটার নিতে চান?</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="target-input" step="0.5" min="1" max="500" class="w-full px-3 py-2 text-sm font-bold bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white" placeholder="যেমন: 15">
+                            <button id="save-target-btn" type="button" class="px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl transition shrink-0">
+                                ঠিক আছে
+                            </button>
+                            <button id="cancel-target-btn" type="button" class="p-2 text-slate-400 hover:text-slate-600 rounded-xl">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Total Collected -->
+                <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                মোট নেওয়া হয়েছে
+                            </p>
+                            <div class="mt-2 flex items-baseline gap-1.5">
+                                <span id="stat-collected" class="text-3xl font-bold text-emerald-600">০</span>
+                                <span class="text-sm font-semibold text-slate-500">লিটার</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-2xl bg-emerald-50 text-emerald-600">
+                            <i data-lucide="droplets" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <p id="stat-days-count" class="mt-3 text-xs font-medium text-slate-500">এই মাসে মোট ০ দিন দুধ নেওয়া হয়েছে</p>
+                </div>
+
+                <!-- Card 3: Remaining to Target -->
+                <div id="remaining-card" class="bg-gradient-to-br from-sky-600 to-blue-700 text-white rounded-3xl p-5 shadow-md shadow-sky-600/15 flex flex-col justify-between">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p id="remaining-label" class="text-sm font-semibold text-sky-100 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-amber-300"></span>
+                                লক্ষ্য পূরণে আরও বাকি
+                            </p>
+                            <div class="mt-2 flex items-baseline gap-1.5">
+                                <span id="stat-remaining" class="text-3xl font-bold text-white">১৫</span>
+                                <span class="text-sm font-semibold text-sky-100">লিটার</span>
+                            </div>
+                        </div>
+                        <div class="p-2.5 rounded-2xl bg-white/15 text-white backdrop-blur-sm">
+                            <i id="remaining-icon" data-lucide="hourglass" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <p id="remaining-subtext" class="mt-3 text-xs font-medium text-sky-100">মাসিক লক্ষ্য পূর্ণ হতে আর ১৫ লিটার প্রয়োজন</p>
+                </div>
+            </div>
+
+            <!-- Visual Progress Bar -->
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm">
+                <div class="flex items-center justify-between text-xs sm:text-sm font-semibold mb-2">
+                    <span class="text-slate-600">মাসিক অগ্রগতি</span>
+                    <span id="progress-percentage" class="text-sky-600 font-bold">০% সম্পন্ন</span>
+                </div>
+                <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/60">
+                    <div id="progress-bar" class="h-full bg-gradient-to-r from-sky-500 to-emerald-500 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Grid: Calendar & Monthly Log -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            <!-- Left/Main Column: Interactive Calendar (7 cols on lg) -->
+            <section class="lg:col-span-7 bg-white rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-sm">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="calendar-days" class="w-5 h-5 text-sky-600"></i>
+                            দুধের ক্যালেন্ডার
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">হিসাব লিখতে বা পরিবর্তন করতে যেকোনো তারিখে ট্যাপ করুন</p>
+                    </div>
+                    <button id="today-btn" type="button" class="px-3 py-1.5 text-xs font-bold bg-slate-100 hover:bg-sky-50 text-slate-700 hover:text-sky-700 rounded-xl border border-slate-200 transition">
+                        আজকের তারিখ
+                    </button>
+                </div>
+
+                <!-- Weekday Headers (Saturday to Friday - Standard Bangladesh Calendar) -->
+                <div class="grid grid-cols-7 gap-1.5 sm:gap-2 text-center mb-2">
+                    <div class="text-xs font-bold text-slate-500 py-1.5">শনি</div>
+                    <div class="text-xs font-bold text-slate-500 py-1.5">রবি</div>
+                    <div class="text-xs font-bold text-slate-500 py-1.5">সোম</div>
+                    <div class="text-xs font-bold text-slate-500 py-1.5">মঙ্গল</div>
+                    <div class="text-xs font-bold text-slate-500 py-1.5">বুধ</div>
+                    <div class="text-xs font-bold text-slate-500 py-1.5">বৃহঃ</div>
+                    <div class="text-xs font-bold text-rose-500 py-1.5">শুক্র</div>
+                </div>
+
+                <!-- Calendar Days Grid -->
+                <div id="calendar-grid" class="grid grid-cols-7 gap-1.5 sm:gap-2">
+                    <!-- Day cells will be dynamically injected here -->
+                </div>
+
+                <!-- Legend -->
+                <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-4 text-xs text-slate-500">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-md bg-emerald-100 border border-emerald-400 inline-block"></span>
+                        <span>দুধ নেওয়া হয়েছে</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-md bg-white border-2 border-sky-500 inline-block"></span>
+                        <span>আজকের দিন</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Column: Monthly Log & Summary Copy (5 cols on lg) -->
+            <section class="lg:col-span-5 bg-white rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-sm flex flex-col">
+                <div class="flex items-center justify-between gap-2 mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="list-checks" class="w-5 h-5 text-emerald-600"></i>
+                            মাসিক তালিকা
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">তারিখ অনুযায়ী সংরক্ষিত হিসাব</p>
+                    </div>
+                    <button id="copy-summary-btn" type="button" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm shadow-emerald-600/20 flex items-center gap-1.5 transition active:scale-95">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                        <span>হিসাব কপি করুন</span>
+                    </button>
+                </div>
+
+                <!-- Entries List Container -->
+                <div id="entries-list" class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                    <!-- Dynamic entry rows injected here -->
+                </div>
+
+                <!-- Empty State (Shown when no entries for month) -->
+                <div id="empty-entries-state" class="hidden py-10 text-center px-4">
+                    <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="milk-off" class="w-6 h-6"></i>
+                    </div>
+                    <p class="text-sm font-semibold text-slate-600">এই মাসে এখনো কোনো হিসাব লেখা হয়নি</p>
+                    <p class="text-xs text-slate-400 mt-1">বাম পাশের ক্যালেন্ডার থেকে যেকোনো তারিখে ক্লিক করে দুধের পরিমাণ যোগ করুন।</p>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="max-w-5xl w-full mx-auto px-4 sm:px-6 py-5 text-center text-xs text-slate-400">
+        আপনার সকল তথ্য আপনার ফোনে বা ব্রাউজারে সম্পূর্ণ নিরাপদে সংরক্ষিত থাকে।
+    </footer>
+
+    <!-- Date Entry Modal -->
+    <div id="entry-modal" class="fixed inset-0 z-40 hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs transition-opacity" role="dialog" aria-modal="true" aria-labelledby="modal-date-title">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 transform transition-all scale-100">
+            
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                        <i data-lucide="calendar-plus" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 id="modal-date-title" class="text-lg font-bold text-slate-900">১৩ নভেম্বর ২০২৬</h3>
+                        <p id="modal-day-name" class="text-xs font-medium text-slate-500">শুক্রবার</p>
+                    </div>
+                </div>
+                <button id="close-modal-btn" type="button" class="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Modal Form -->
+            <form id="entry-form" class="mt-4 space-y-4">
+                <!-- Quantity Dropdown -->
+                <div>
+                    <label for="quantity-select" class="block text-sm font-bold text-slate-700 mb-1.5">কত লিটার / কেজি দুধ আনা হয়েছে?</label>
+                    <div class="relative">
+                        <select id="quantity-select" class="w-full appearance-none bg-slate-50 border border-slate-300 text-slate-900 font-semibold text-base rounded-2xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white transition">
+                            <option value="0.5">০.৫ লিটার (আধা কেজি)</option>
+                            <option value="0.75">০.৭৫ লিটার (তিন পোয়া)</option>
+                            <option value="1" selected>১ লিটার (১ কেজি)</option>
+                            <option value="1.25">১.২৫ লিটার (সোয়া এক কেজি)</option>
+                            <option value="1.5">১.৫ লিটার (দেড় কেজি)</option>
+                            <option value="2">২ লিটার (২ কেজি)</option>
+                            <option value="2.5">২.৫ লিটার (আড়াই কেজি)</option>
+                            <option value="3">৩ লিটার (৩ কেজি)</option>
+                            <option value="custom">অন্যান্য / কাস্টম পরিমাণ লিখুন...</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-500">
+                            <i data-lucide="chevron-down" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Custom Quantity Input (Shown only when 'custom' is selected) -->
+                <div id="custom-quantity-box" class="hidden bg-sky-50/70 p-3.5 rounded-2xl border border-sky-200/80">
+                    <label for="custom-quantity-input" class="block text-xs font-bold text-sky-900 mb-1.5">সঠিক পরিমাণ লিখুন (লিটার/কেজি):</label>
+                    <input type="number" id="custom-quantity-input" step="0.05" min="0.05" max="100" placeholder="যেমন: 1.75 বা 4" class="w-full bg-white border border-sky-300 text-slate-900 font-bold text-base rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                </div>
+
+                <!-- Optional Note Input -->
+                <div>
+                    <label for="note-input" class="block text-sm font-bold text-slate-700 mb-1.5">সংক্ষিপ্ত নোট <span class="text-xs font-normal text-slate-400">(ঐচ্ছিক)</span></label>
+                    <input type="text" id="note-input" maxlength="60" placeholder="যেমন: সকালে আনা হয়েছে বা দইয়ের জন্য" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-2xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white transition">
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="pt-2 flex flex-wrap items-center gap-2.5">
+                    <button type="submit" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-2xl shadow-md shadow-sky-600/20 flex items-center justify-center gap-2 transition active:scale-98">
+                        <i data-lucide="check" class="w-5 h-5"></i>
+                        <span>সংরক্ষণ করুন</span>
+                    </button>
+                    
+                    <button id="delete-entry-btn" type="button" class="hidden bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold py-3 px-4 rounded-2xl border border-rose-200 flex items-center justify-center gap-1.5 transition active:scale-98" title="এই তারিখের হিসাব মুছুন">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        <span>মুছুন</span>
+                    </button>
+
+                    <button id="cancel-modal-btn" type="button" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-2xl transition">
+                        বাতিল
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // Bengali Localization Helpers
+        const BENGALI_DIGITS = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+        const BENGALI_MONTHS = [
+            'জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন',
+            'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'
+        ];
+        const BENGALI_DAYS = [
+            'রবিবার', 'সোমবার', 'মঙ্গলবার', 'বুধবার', 'বৃহস্পতিবার', 'শুক্রবার', 'শনিবার'
+        ];
+
+        // Convert English numbers to Bengali numerals cleanly
+        function toBengaliNumber(num) {
+            if (num === null || num === undefined) return '০';
+            // Format decimal nicely (remove trailing .00, keep up to 2 decimal places)
+            const formatted = typeof num === 'number' ? Number(num.toFixed(2)).toString() : num.toString();
+            return formatted.replace(/\d/g, d => BENGALI_DIGITS[parseInt(d, 10)]);
+        }
+
+        // Storage Keys
+        const STORAGE_KEY_ENTRIES = 'milk_tracker_entries_v1';
+        const STORAGE_KEY_TARGETS = 'milk_tracker_targets_v1';
+        const DEFAULT_TARGET = 15;
+
+        // App State
+        const today = new Date();
+        let state = {
+            currentYear: today.getFullYear(),
+            currentMonth: today.getMonth(), // 0-indexed (0 = Jan, 10 = Nov)
+            selectedDateStr: null, // Format: "YYYY-MM-DD"
+            entries: {}, // { "2026-11-13": { qty: 1.5, note: "সকালে" } }
+            targets: {}  // { "2026-11": 15, "default": 15 }
+        };
+
+        // Load saved data from localStorage safely
+        function loadState() {
+            try {
+                const savedEntries = localStorage.getItem(STORAGE_KEY_ENTRIES);
+                const savedTargets = localStorage.getItem(STORAGE_KEY_TARGETS);
+                if (savedEntries) state.entries = JSON.parse(savedEntries);
+                if (savedTargets) state.targets = JSON.parse(savedTargets);
+            } catch (err) {
+                console.error('তথ্য লোড করতে সমস্যা হয়েছে:', err);
+            }
+        }
+
+        // Save data to localStorage
+        function saveState() {
+            try {
+                localStorage.setItem(STORAGE_KEY_ENTRIES, JSON.stringify(state.entries));
+                localStorage.setItem(STORAGE_KEY_TARGETS, JSON.stringify(state.targets));
+            } catch (err) {
+                console.error('তথ্য সংরক্ষণ করতে সমস্যা হয়েছে:', err);
+                showToast('তথ্য সংরক্ষণে সমস্যা হয়েছে!');
+            }
+        }
+
+        // Get active month key ("YYYY-MM")
+        function getMonthKey(year = state.currentYear, month = state.currentMonth) {
+            const m = String(month + 1).padStart(2, '0');
+            return `${year}-${m}`;
+        }
+
+        // Get target for the currently viewed month
+        function getMonthlyTarget() {
+            const mKey = getMonthKey();
+            if (state.targets[mKey] !== undefined) {
+                return parseFloat(state.targets[mKey]);
+            }
+            if (state.targets.default !== undefined) {
+                return parseFloat(state.targets.default);
+            }
+            return DEFAULT_TARGET;
+        }
+
+        // Format YYYY-MM-DD
+        function formatDateKey(year, month, day) {
+            return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        }
+
+        // Show custom toast message
+        let toastTimeout;
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            toastMsg.textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 2800);
+        }
+
+        // Update Dashboard Summary Stats & Progress Bar
+        function renderSummary() {
+            const target = getMonthlyTarget();
+            const monthPrefix = getMonthKey();
+            
+            let totalCollected = 0;
+            let daysCount = 0;
+
+            Object.keys(state.entries).forEach(dateKey => {
+                if (dateKey.startsWith(monthPrefix)) {
+                    const qty = parseFloat(state.entries[dateKey].qty) || 0;
+                    if (qty > 0) {
+                        totalCollected += qty;
+                        daysCount++;
+                    }
+                }
+            });
+
+            // Round to avoid floating point artifacts (e.g. 1.5000000002)
+            totalCollected = Math.round(totalCollected * 100) / 100;
+            const remaining = Math.round((target - totalCollected) * 100) / 100;
+
+            // Update Target & Collected UI
+            document.getElementById('stat-target').textContent = toBengaliNumber(target);
+            document.getElementById('stat-collected').textContent = toBengaliNumber(totalCollected);
+            document.getElementById('stat-days-count').textContent = `এই মাসে মোট ${toBengaliNumber(daysCount)} দিন দুধ নেওয়া হয়েছে`;
+
+            // Update Remaining Card UI
+            const remainingCard = document.getElementById('remaining-card');
+            const remainingLabel = document.getElementById('remaining-label');
+            const statRemaining = document.getElementById('stat-remaining');
+            const remainingSubtext = document.getElementById('remaining-subtext');
+
+            if (remaining > 0) {
+                remainingCard.className = 'bg-gradient-to-br from-sky-600 to-blue-700 text-white rounded-3xl p-5 shadow-md shadow-sky-600/15 flex flex-col justify-between';
+                remainingLabel.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-300"></span> লক্ষ্য পূরণে আরও বাকি`;
+                statRemaining.textContent = toBengaliNumber(remaining);
+                remainingSubtext.textContent = `মাসিক ${toBengaliNumber(target)} লিটার পূর্ণ হতে আর ${toBengaliNumber(remaining)} লিটার বাকি`;
+            } else if (remaining === 0) {
+                remainingCard.className = 'bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-3xl p-5 shadow-md shadow-emerald-600/15 flex flex-col justify-between';
+                remainingLabel.innerHTML = `<span class="w-2 h-2 rounded-full bg-white"></span> মাসিক লক্ষ্য পূর্ণ!`;
+                statRemaining.textContent = '০';
+                remainingSubtext.textContent = `দারুণ! এই মাসের ${toBengaliNumber(target)} লিটার লক্ষ্য পূর্ণ হয়েছে`;
+            } else {
+                const extra = Math.abs(remaining);
+                remainingCard.className = 'bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-3xl p-5 shadow-md shadow-emerald-600/15 flex flex-col justify-between';
+                remainingLabel.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-300"></span> লক্ষ্য পূর্ণ (অতিরিক্ত)`;
+                statRemaining.textContent = `+${toBengaliNumber(extra)}`;
+                remainingSubtext.textContent = `লক্ষ্যের চেয়ে ${toBengaliNumber(extra)} লিটার বেশি নেওয়া হয়েছে`;
+            }
+
+            // Progress Bar
+            const pct = target > 0 ? Math.min(100, Math.round((totalCollected / target) * 100)) : 0;
+            document.getElementById('progress-percentage').textContent = `${toBengaliNumber(pct)}% সম্পন্ন`;
+            document.getElementById('progress-bar').style.width = `${pct}%`;
+        }
+
+        // Render Monthly Calendar Grid
+        function renderCalendar() {
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+
+            // Update Header Title
+            document.getElementById('current-month-year').textContent = 
+                `${BENGALI_MONTHS[state.currentMonth]} ${toBengaliNumber(state.currentYear)}`;
+
+            // Calculate first day of month and total days
+            // JS getDay(): 0 = Sun, 1 = Mon, ..., 6 = Sat
+            // We want Saturday as first column (index 0): (jsDay + 1) % 7
+            const firstDayJs = new Date(state.currentYear, state.currentMonth, 1).getDay();
+            const startOffset = (firstDayJs + 1) % 7;
+            const daysInMonth = new Date(state.currentYear, state.currentMonth + 1, 0).getDate();
+
+            const todayKey = formatDateKey(today.getFullYear(), today.getMonth(), today.getDate());
+
+            // Empty cells before 1st day
+            for (let i = 0; i < startOffset; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'h-16 sm:h-20 rounded-2xl bg-slate-50/60 border border-transparent';
+                grid.appendChild(emptyCell);
+            }
+
+            // Actual day cells
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateKey = formatDateKey(state.currentYear, state.currentMonth, day);
+                const entry = state.entries[dateKey];
+                const isToday = dateKey === todayKey;
+                const isSelected = dateKey === state.selectedDateStr;
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.onclick = () => openEntryModal(dateKey);
+
+                // Styling based on state
+                let baseClasses = 'h-16 sm:h-20 rounded-2xl p-1.5 sm:p-2 flex flex-col items-center justify-between transition-all relative group cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-500 ';
+                
+                if (entry && entry.qty > 0) {
+                    baseClasses += 'bg-emerald-50/90 hover:bg-emerald-100/90 border border-emerald-300 shadow-2xs ';
+                } else {
+                    baseClasses += 'bg-white hover:bg-sky-50/70 border border-slate-200/80 hover:border-sky-300 ';
+                }
+
+                if (isToday) {
+                    baseClasses += 'ring-2 ring-sky-500 ring-offset-1 ';
+                }
+                if (isSelected) {
+                    baseClasses += 'border-sky-600 bg-sky-50 ';
+                }
+
+                btn.className = baseClasses;
+
+                // Date Number Header
+                const dateNumSpan = document.createElement('span');
+                dateNumSpan.className = `text-xs sm:text-sm font-bold leading-none ${
+                    isToday ? 'bg-sky-600 text-white px-1.5 py-0.5 rounded-lg' : 
+                    (entry ? 'text-emerald-950' : 'text-slate-700')
+                }`;
+                dateNumSpan.textContent = toBengaliNumber(day);
+                btn.appendChild(dateNumSpan);
+
+                // Milk Quantity Badge or Plus Hint
+                if (entry && entry.qty > 0) {
+                    const badge = document.createElement('div');
+                    badge.className = 'w-full text-center bg-emerald-600 text-white text-[10px] sm:text-xs font-bold py-0.5 px-1 rounded-lg shadow-2xs truncate';
+                    badge.textContent = `${toBengaliNumber(entry.qty)} লিঃ`;
+                    btn.appendChild(badge);
+
+                    if (entry.note) {
+                        const dot = document.createElement('span');
+                        dot.className = 'absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-500';
+                        dot.title = entry.note;
+                        btn.appendChild(dot);
+                    }
+                } else {
+                    const addHint = document.createElement('span');
+                    addHint.className = 'text-slate-300 group-hover:text-sky-500 transition text-xs font-bold';
+                    addHint.textContent = '+';
+                    btn.appendChild(addHint);
+                }
+
+                grid.appendChild(btn);
+            }
+        }
+
+        // Render Monthly Entries List
+        function renderEntriesList() {
+            const listContainer = document.getElementById('entries-list');
+            const emptyState = document.getElementById('empty-entries-state');
+            const monthPrefix = getMonthKey();
+
+            // Filter and sort entries chronologically
+            const monthKeys = Object.keys(state.entries)
+                .filter(k => k.startsWith(monthPrefix) && state.entries[k].qty > 0)
+                .sort((a, b) => a.localeCompare(b));
+
+            listContainer.innerHTML = '';
+
+            if (monthKeys.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            monthKeys.forEach(dateKey => {
+                const entry = state.entries[dateKey];
+                const [y, m, d] = dateKey.split('-').map(Number);
+                const dateObj = new Date(y, m - 1, d);
+                const dayName = BENGALI_DAYS[dateObj.getDay()];
+
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-3 rounded-2xl bg-slate-50 hover:bg-sky-50/70 border border-slate-200/70 transition cursor-pointer group';
+                item.onclick = () => openEntryModal(dateKey);
+
+                item.innerHTML = `
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex flex-col items-center justify-center shrink-0 shadow-2xs">
+                            <span class="text-sm font-bold text-slate-800 leading-none">${toBengaliNumber(d)}</span>
+                            <span class="text-[10px] font-medium text-slate-400 mt-0.5">${BENGALI_MONTHS[m - 1].slice(0, 3)}</span>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold text-slate-800 truncate">${toBengaliNumber(d)} ${BENGALI_MONTHS[m - 1]} <span class="text-xs font-normal text-slate-500">(${dayName})</span></p>
+                            <p class="text-xs text-slate-500 truncate">${entry.note ? entry.note : 'নিয়মিত দুধ সংগ্রহ'}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800 font-bold text-xs sm:text-sm">
+                            ${toBengaliNumber(entry.qty)} লিটার
+                        </span>
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-sky-600 transition"></i>
+                    </div>
+                `;
+
+                listContainer.appendChild(item);
+            });
+
+            lucide.createIcons();
+        }
+
+        // Master Render Function
+        function renderAll() {
+            renderSummary();
+            renderCalendar();
+            renderEntriesList();
+            lucide.createIcons();
+        }
+
+        // Open Entry Modal for a specific date ("YYYY-MM-DD")
+        function openEntryModal(dateKey) {
+            state.selectedDateStr = dateKey;
+            renderCalendar(); // Highlight selected cell
+
+            const [y, m, d] = dateKey.split('-').map(Number);
+            const dateObj = new Date(y, m - 1, d);
+            const dayName = BENGALI_DAYS[dateObj.getDay()];
+
+            document.getElementById('modal-date-title').textContent = `${toBengaliNumber(d)} ${BENGALI_MONTHS[m - 1]} ${toBengaliNumber(y)}`;
+            document.getElementById('modal-day-name').textContent = dayName;
+
+            const existing = state.entries[dateKey];
+            const selectEl = document.getElementById('quantity-select');
+            const customBox = document.getElementById('custom-quantity-box');
+            const customInput = document.getElementById('custom-quantity-input');
+            const noteInput = document.getElementById('note-input');
+            const deleteBtn = document.getElementById('delete-entry-btn');
+
+            if (existing && existing.qty > 0) {
+                deleteBtn.classList.remove('hidden');
+                noteInput.value = existing.note || '';
+
+                // Check if quantity matches one of the preset dropdown options
+                const presetValues = ['0.5', '0.75', '1', '1.25', '1.5', '2', '2.5', '3'];
+                const qtyStr = String(existing.qty);
+                if (presetValues.includes(qtyStr)) {
+                    selectEl.value = qtyStr;
+                    customBox.classList.add('hidden');
+                    customInput.value = '';
+                } else {
+                    selectEl.value = 'custom';
+                    customBox.classList.remove('hidden');
+                    customInput.value = existing.qty;
+                }
+            } else {
+                deleteBtn.classList.add('hidden');
+                selectEl.value = '1'; // Default 1 liter
+                customBox.classList.add('hidden');
+                customInput.value = '';
+                noteInput.value = '';
+            }
+
+            const modal = document.getElementById('entry-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        // Close Entry Modal
+        function closeEntryModal() {
+            const modal = document.getElementById('entry-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            state.selectedDateStr = null;
+            renderCalendar();
+        }
+
+        // Copy Monthly Summary to Clipboard
+        function copyMonthlySummary() {
+            const target = getMonthlyTarget();
+            const monthPrefix = getMonthKey();
+            const monthName = `${BENGALI_MONTHS[state.currentMonth]} ${toBengaliNumber(state.currentYear)}`;
+
+            const monthKeys = Object.keys(state.entries)
+                .filter(k => k.startsWith(monthPrefix) && state.entries[k].qty > 0)
+                .sort((a, b) => a.localeCompare(b));
+
+            let totalCollected = 0;
+            let lines = [];
+
+            monthKeys.forEach(dateKey => {
+                const entry = state.entries[dateKey];
+                const d = parseInt(dateKey.split('-')[2], 10);
+                totalCollected += parseFloat(entry.qty) || 0;
+                const noteText = entry.note ? ` (${entry.note})` : '';
+                lines.push(`• ${toBengaliNumber(d)} ${BENGALI_MONTHS[state.currentMonth]}: ${toBengaliNumber(entry.qty)} লিটার${noteText}`);
+            });
+
+            totalCollected = Math.round(totalCollected * 100) / 100;
+            const remaining = Math.round((target - totalCollected) * 100) / 100;
+
+            let summaryText = `🥛 *মিল্ক ট্র্যাকার হিসাব (${monthName})*\n`;
+            summaryText += `--------------------------\n`;
+            if (lines.length > 0) {
+                summaryText += lines.join('\n') + `\n--------------------------\n`;
+            } else {
+                summaryText += `(এই মাসে কোনো দুধ এন্ট্রি করা হয়নি)\n--------------------------\n`;
+            }
+            summaryText += `🎯 মাসিক লক্ষ্য: ${toBengaliNumber(target)} লিটার\n`;
+            summaryText += `✅ মোট নেওয়া হয়েছে: ${toBengaliNumber(totalCollected)} লিটার\n`;
+            
+            if (remaining > 0) {
+                summaryText += `⏳ আরও বাকি আছে: ${toBengaliNumber(remaining)} লিটার`;
+            } else if (remaining === 0) {
+                summaryText += `🎉 লক্ষ্য পূর্ণ হয়েছে!`;
+            } else {
+                summaryText += `🎉 লক্ষ্য পূর্ণ! অতিরিক্ত ${toBengaliNumber(Math.abs(remaining))} লিটার নেওয়া হয়েছে`;
+            }
+
+            // Copy using fallback textarea for iFrame compatibility
+            const textArea = document.createElement('textarea');
+            textArea.value = summaryText;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-9999px';
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('সম্পূর্ণ মাসের হিসাব কপি করা হয়েছে!');
+            } catch (err) {
+                showToast('কপি করতে সমস্যা হয়েছে');
+            }
+            document.body.removeChild(textArea);
+        }
+
+        // Event Listeners Initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            renderAll();
+
+            // Month Navigation
+            document.getElementById('prev-month-btn').addEventListener('click', () => {
+                state.currentMonth--;
+                if (state.currentMonth < 0) {
+                    state.currentMonth = 11;
+                    state.currentYear--;
+                }
+                renderAll();
+            });
+
+            document.getElementById('next-month-btn').addEventListener('click', () => {
+                state.currentMonth++;
+                if (state.currentMonth > 11) {
+                    state.currentMonth = 0;
+                    state.currentYear++;
+                }
+                renderAll();
+            });
+
+            document.getElementById('today-btn').addEventListener('click', () => {
+                const now = new Date();
+                state.currentYear = now.getFullYear();
+                state.currentMonth = now.getMonth();
+                renderAll();
+                showToast('বর্তমান মাসে ফিরে আসা হয়েছে');
+            });
+
+            // Monthly Target Inline Editor
+            const editTargetBtn = document.getElementById('edit-target-btn');
+            const targetEditBox = document.getElementById('target-edit-box');
+            const targetInput = document.getElementById('target-input');
+
+            editTargetBtn.addEventListener('click', () => {
+                targetInput.value = getMonthlyTarget();
+                targetEditBox.classList.remove('hidden');
+                targetInput.focus();
+            });
+
+            document.getElementById('cancel-target-btn').addEventListener('click', () => {
+                targetEditBox.classList.add('hidden');
+            });
+
+            document.getElementById('save-target-btn').addEventListener('click', () => {
+                const newVal = parseFloat(targetInput.value);
+                if (!isNaN(newVal) && newVal > 0) {
+                    const mKey = getMonthKey();
+                    state.targets[mKey] = newVal;
+                    state.targets.default = newVal; // Remember as default for future months too
+                    saveState();
+                    targetEditBox.classList.add('hidden');
+                    renderAll();
+                    showToast(`মাসিক লক্ষ্য ${toBengaliNumber(newVal)} লিটার নির্ধারণ করা হয়েছে`);
+                } else {
+                    showToast('দয়া করে সঠিক পরিমাণ লিখুন');
+                }
+            });
+
+            // Quantity Select Change (Show/Hide Custom Input)
+            document.getElementById('quantity-select').addEventListener('change', (e) => {
+                const customBox = document.getElementById('custom-quantity-box');
+                const customInput = document.getElementById('custom-quantity-input');
+                if (e.target.value === 'custom') {
+                    customBox.classList.remove('hidden');
+                    customInput.focus();
+                } else {
+                    customBox.classList.add('hidden');
+                }
+            });
+
+            // Save Entry Form Submit
+            document.getElementById('entry-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                if (!state.selectedDateStr) return;
+
+                const selectVal = document.getElementById('quantity-select').value;
+                let qty = 0;
+
+                if (selectVal === 'custom') {
+                    qty = parseFloat(document.getElementById('custom-quantity-input').value);
+                } else {
+                    qty = parseFloat(selectVal);
+                }
+
+                if (isNaN(qty) || qty <= 0) {
+                    showToast('দয়া করে দুধের সঠিক পরিমাণ লিখুন');
+                    return;
+                }
+
+                const note = document.getElementById('note-input').value.trim();
+                state.entries[state.selectedDateStr] = {
+                    qty: Math.round(qty * 100) / 100,
+                    note: note
+                };
+
+                saveState();
+                closeEntryModal();
+                renderAll();
+                showToast(`${toBengaliNumber(qty)} লিটার দুধ সংরক্ষণ করা হয়েছে`);
+            });
+
+            // Delete Entry Button
+            document.getElementById('delete-entry-btn').addEventListener('click', () => {
+                if (state.selectedDateStr && state.entries[state.selectedDateStr]) {
+                    delete state.entries[state.selectedDateStr];
+                    saveState();
+                    closeEntryModal();
+                    renderAll();
+                    showToast('হিসাবটি মুছে ফেলা হয়েছে');
+                }
+            });
+
+            // Close Modal Handlers
+            document.getElementById('close-modal-btn').addEventListener('click', closeEntryModal);
+            document.getElementById('cancel-modal-btn').addEventListener('click', closeEntryModal);
+            document.getElementById('entry-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'entry-modal') closeEntryModal();
+            });
+
+            // Copy Summary Button
+            document.getElementById('copy-summary-btn').addEventListener('click', copyMonthlySummary);
+        });
+    </script>
+</body>
+</html>
